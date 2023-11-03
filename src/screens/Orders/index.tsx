@@ -19,18 +19,17 @@ import Styles from './styles';
 import {ProductAPI} from '../../api/productAPi';
 import {useAuth} from '../../context/auth-content';
 import {getItemByKey} from '../../helpers';
-import {CART, White} from '../../constants';
+import {CART, ORDERS, White} from '../../constants';
 
 export type RootStackParamList = {};
 
-type DasboardScreenProps = NativeStackScreenProps<{}>;
+type OrdersScreenProps = NativeStackScreenProps<{}>;
 
-const Dasboard: React.FC<DasboardScreenProps> = ({navigation}) => {
+const Orders: React.FC<OrdersScreenProps> = ({navigation}) => {
   const {user, setCartProducts, cartProducts} = useAuth();
   const [products, setProducts] = useState<IProduct[]>();
-  const [listSize] = useState<number>(20);
   const [page, setPage] = useState<number>(0);
-  const [skipSize] = useState<number>(20);
+  const [orders, setOrders] = useState([]);
 
   const isDarkMode = useColorScheme() === 'dark';
 
@@ -38,94 +37,74 @@ const Dasboard: React.FC<DasboardScreenProps> = ({navigation}) => {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
 
-  const getProducts = async () => {
-    const res = await ProductAPI.getAll(listSize, page * skipSize);
-    if (products?.length > 0) {
-      const allProducts = [...(products as IProduct[]), ...res];
-      setProducts(allProducts);
-    } else {
-      setProducts(res);
-    }
-  };
-
-  useEffect(() => {
-    getProducts();
-  }, [page]);
-
-  const getUserCartProducts = async () => {
-    const usersCart = await getItemByKey(CART);
-    if (usersCart) {
-      const activeUserCartItems = usersCart.filter(
-        (item: ICartProducts) => item.email === user?.email,
+  const getUserOrderedProducts = async () => {
+    const usersOrders = await getItemByKey(ORDERS);
+    console.log({usersOrders});
+    console.log({user});
+    if (usersOrders) {
+      const activeUserCartItems = usersOrders.filter(
+        item => item.userId === user.id,
       );
-      console.log({activeUserCartItems})
-      setCartProducts(activeUserCartItems);
+      console.log({activeUserCartItems});
+      setOrders(activeUserCartItems);
     }
   };
 
   useEffect(() => {
-    getUserCartProducts();
+    getUserOrderedProducts();
   }, []);
 
-  const renderProductList = (item: IProduct) => {
+  const renderProductList = item => {
+
     return (
-      <Pressable
-        onPress={() =>
-          navigation.push('productDetails', {
-            product: item,
-          })
-        }
-        style={Styles.listContainer}>
-        <View>
-          <Image
-            source={{
-              uri:
-                item?.thumbnail ||
-                'https://www.google.com/url?sa=i&url=https%3A%2F%2Funiversalele.websites.co.in%2Fproducts%2Fpvc-clip%2F8841&psig=AOvVaw3SLr_xs_H8w8spuWVgZHYw&ust=1699052826126000&source=images&cd=vfe&opi=89978449&ved=0CA8QjRxqFwoTCLC4_pW3poIDFQAAAAAdAAAAABAI',
-            }}
-            style={Styles.productImage}
-          />
+      <View style={Styles.listContainer}>
+         <View style={Styles.productDetails}>
+          <Text style={Styles.productDetailTitle}>Number of Products</Text>
+          <Text style={Styles.productDetailDescription}>{item?.cartProducts?.length}</Text>
         </View>
         <View style={Styles.productDetails}>
-          <Text style={Styles.productPricingDetail}>{item.title}</Text>
-          <Text style={Styles.productPricingDetail}>{item.rating}</Text>
+          <Text style={Styles.productDetailTitle}>Status</Text>
+          <Text  style={Styles.productDetailDescription}>Pending</Text>
         </View>
         <View style={Styles.productDetails}>
-          <Text style={Styles.productPricingDetail}>{item.brand}</Text>
+          <Text style={Styles.productDetailTitle}>Payment Methods</Text>
+          <Text style={Styles.productDetailDescription}>{item?.payment?.paymentMethod}</Text>
         </View>
-      </Pressable>
+        <View style={Styles.productDetails}>
+          <Text style={Styles.productDetailTitle}>Contact No</Text>
+          <Text style={Styles.productDetailDescription}>{item?.deliveryAddress?.contactNo}</Text>
+        </View>
+      </View>
     );
   };
 
   return (
-    <SafeAreaView style={{backgroundColor: White}}>
+    <SafeAreaView style={{backgroundColor: White, flex : 1}}>
       <StatusBar
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor={backgroundStyle.backgroundColor}
       />
       <Header
-        title={'HOME'}
+        title={'Orders'}
         showUserAvatar={true}
         user={user}
         cartItems={cartProducts?.length || '0'}
       />
       <View style={Styles.productTitleContainer}>
-        <Text style={Styles.productTitle}>Products</Text>
+        <Text style={Styles.productTitle}>Orders Listing</Text>
       </View>
 
       <View style={Styles.productlistContainer}>
         <View style={Styles.productContentContainer}>
-          {products && products?.length > 0 ? (
+          {orders && orders?.length > 0 ? (
             <FlatList
               keyExtractor={(item, index) => String(index)}
               numColumns={2}
-              data={products}
+              data={orders}
               renderItem={({item}) => renderProductList(item)}
               ItemSeparatorComponent={() => <View style={{height: 1}} />}
               contentContainerStyle={{flexGrow: 1, justifyContent: 'center'}}
               showsVerticalScrollIndicator={false}
-              onEndReachedThreshold={0.7}
-              onEndReached={() => setPage(page + 1)}
             />
           ) : (
             <ProductSkeleon />
@@ -136,4 +115,4 @@ const Dasboard: React.FC<DasboardScreenProps> = ({navigation}) => {
   );
 };
 
-export default Dasboard;
+export default Orders;

@@ -1,30 +1,21 @@
-import React, {useRef, useState, useEffect} from 'react';
+import React, {useState} from 'react';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {
   View,
-  Image,
   Dimensions,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   SafeAreaView,
-  StatusBar, useColorScheme
+  StatusBar,
+  useColorScheme,
 } from 'react-native';
-import Toast from 'react-native-toast-message';
 import Header from '../../components/header';
-import {
-  AppColor,
-  Black,
-  BlackLite,
-  secondary,
-  White,
-  WhiteLite,
-} from '../../constants';
-import {IProduct} from '../../interface';
+import {AppColor, Black, BlackLite, White} from '../../constants';
 import Input from '../../components/input';
 import {Colors} from 'react-native/Libraries/NewAppScreen';
-
+import {useAuth} from '../../context/auth-content';
+import {successToast} from '../../helpers';
 
 export const SLIDER_WIDTH = Dimensions.get('window').width;
 export const ITEM_WIDTH = Math.round(SLIDER_WIDTH * 0.7);
@@ -33,77 +24,75 @@ export type RootStackParamList = {};
 
 type CheckoutScreenProps = NativeStackScreenProps<{}>;
 const Checkout: React.FC<CheckoutScreenProps> = ({navigation}) => {
+  const {setDeliveryAddress} = useAuth();
   const isDarkMode = useColorScheme() === 'dark';
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
 
+  const [countury, setCountury] = useState<string>('');
+  const [city, setCity] = useState<string>('');
+  const [town, setTown] = useState<string>('');
+  const [postalCode, setPostalCode] = useState<string>('');
+  const [contactNo, setContactNo] = useState<string>('');
 
-  const [activeItem, setActiveItem] = useState(0);
-  const [productQuantity, setProductQuantity] = useState(1);
-  const [cart, setCart] = useState([]);
-  const isCarousel = useRef();
+  const onSubmitBillingAddress = () => {
+    if (!countury || !city || !town || !postalCode || !contactNo) {
+      successToast('Please fill are adress fields and then try again');
+      return;
+    }
 
-  const getProducts = async () => {
-    const res = await fetch('https://dummyjson.com/products?limit=13', {
-      method: 'GET',
-    });
+    const addressinfo = {
+      countury,
+      city,
+      town,
+      postalCode,
+      contactNo,
+    };
 
-    const data = await res.json();
-    setCart(data?.products);
-  };
+    setDeliveryAddress(addressinfo);
 
-  useEffect(() => {
-    getProducts();
-  }, []);
-
-  const showToast = () => {
-    Toast.show({
-      type: 'success',
-      text1: 'Cart',
-      text2: 'Product added',
-    });
+    navigation.push('payment', {});
   };
 
   return (
-    <SafeAreaView
-    style={{flex : 1 , backgroundColor : '#fffff'}}
-    >
-         <StatusBar
+    <SafeAreaView style={{flex: 1, backgroundColor: '#fffff'}}>
+      <StatusBar
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor={backgroundStyle.backgroundColor}
       />
       <Header title="Billing Address" />
       <View style={{marginTop: 30, height: '71.5%', marginBottom: 10}}>
-      <Input
+        <Input
           placeholder="Countury"
           fullWidth
-          onChangeText={val => {}}
-          value={''}
+          onChangeText={val => setCountury(val)}
+          value={countury}
         />
         <Input
           placeholder="City"
           fullWidth
-          onChangeText={val => {}}
-          value={''}
+          onChangeText={val => setCity(val)}
+          value={city}
         />
-         <Input
+        <Input
           placeholder="Town"
           fullWidth
-          onChangeText={val => {}}
-          value={''}
+          onChangeText={val => setTown(val)}
+          value={town}
         />
-          <Input
-          placeholder="Postak Code"
+        <Input
+          placeholder="Postal Code"
           fullWidth
-          onChangeText={val => {}}
-          value={''}
+          onChangeText={val => setPostalCode(val)}
+          value={postalCode}
         />
         <Input
           placeholder="Contact No"
           fullWidth
-          onChangeText={val => {}}
-          value={''}
+          onChangeText={val => setContactNo(val)}
+          value={contactNo}
+          numeric
         />
       </View>
 
@@ -116,7 +105,7 @@ const Checkout: React.FC<CheckoutScreenProps> = ({navigation}) => {
           marginTop: 20,
         }}>
         <TouchableOpacity
-        onPress={() => navigation.push('payment')}
+          onPress={() => onSubmitBillingAddress()}
           style={{
             width: '90%',
             borderRadius: 10,
@@ -130,52 +119,5 @@ const Checkout: React.FC<CheckoutScreenProps> = ({navigation}) => {
     </SafeAreaView>
   );
 };
-
-const Styles = StyleSheet.create({
-  flexRowSpace: {
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    textTransform: 'capitalize',
-    color: Black,
-  },
-  priceTxt: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: Black,
-  },
-  brandTxt: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: Black,
-  },
-  descriptionTitle: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: Black,
-  },
-  descriptionTxt: {
-    fontSize: 13,
-    color: BlackLite,
-    lineHeight: 20,
-    marginTop: 8,
-  },
-  productPricingDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  heading: {
-    fontSize: 16,
-    color: Black,
-  },
-  headingDetail: {
-    fontSize: 16,
-    color: AppColor,
-  },
-});
 
 export default Checkout;

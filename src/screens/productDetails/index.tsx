@@ -6,12 +6,27 @@ import {
   Dimensions,
   Text,
   StyleSheet,
+  StatusBar,
+  useColorScheme,
 } from 'react-native';
 import Carousel, {Pagination} from 'react-native-snap-carousel';
 import Toast from 'react-native-toast-message';
 import {TouchableOpacity} from 'react-native-gesture-handler';
 import Header from '../../components/header';
-import {AppColor, Black, BlackLite, White, WhiteLite} from '../../constants';
+import {
+  AppColor,
+  Black,
+  BlackLite,
+  CART,
+  White,
+  WhiteLite,
+} from '../../constants';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {Colors} from 'react-native/Libraries/NewAppScreen';
+import {ICartProducts} from '../../interface';
+import {useAuth} from '../../context/auth-content';
+import {getItemByKey, setItemByKey} from '../../helpers';
+import {v4 as uuidv4} from 'uuid';
 
 export const SLIDER_WIDTH = Dimensions.get('window').width;
 export const ITEM_WIDTH = Math.round(SLIDER_WIDTH * 0.7);
@@ -25,11 +40,19 @@ const ProductDetails: React.FC<ProductDetailsScreenProps> = ({
     params: {product},
   },
 }) => {
+  const {user, setCartProducts} = useAuth();
   const [activeItem, setActiveItem] = useState(0);
   const [productQuantity, setProductQuantity] = useState(1);
   const isCarousel = useRef();
   const {images, brand, price, rating, discountPercentage, description, title} =
     product;
+
+  const isDarkMode = useColorScheme() === 'dark';
+
+  const backgroundStyle = {
+    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+  };
+
   const _renderItem = ({item}) => {
     return (
       <>
@@ -41,6 +64,39 @@ const ProductDetails: React.FC<ProductDetailsScreenProps> = ({
     );
   };
 
+  const addProductToCart = async () => {
+    const addToCart: ICartProducts = {
+      id: uuidv4(),
+      productId: product.id,
+      userId: user?.id,
+      email: user?.email,
+      productQuantity: productQuantity,
+    };
+
+    const usersCartItems = await getItemByKey(CART);
+    const userCart = [addToCart];
+
+    // check if cart already exist in our local storage but if not then we will store a new array with Cart key
+    // right now we're treating every product added in cart as individual
+    // entry but we can also increase the quantity of the products if we add the same product
+
+    if (!usersCartItems) {
+      setItemByKey(CART, userCart);
+      setCartProducts(userCart);
+    } else {
+      const allUsersCartItems = [...usersCartItems];
+      allUsersCartItems.push(addToCart);
+      setItemByKey(CART, allUsersCartItems);
+
+      // filtering our current active user cart items
+      const activeUserCartItems = allUsersCartItems.filter(
+        item => item?.email === user?.email,
+      );
+      setCartProducts(activeUserCartItems);
+    }
+    showToast();
+  };
+
   const showToast = () => {
     Toast.show({
       type: 'success',
@@ -50,8 +106,12 @@ const ProductDetails: React.FC<ProductDetailsScreenProps> = ({
   };
 
   return (
-    <View>
-      <Header title="product Details" />
+    <SafeAreaView style={{backgroundColor: '#ffff'}}>
+      <StatusBar
+        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+        backgroundColor={backgroundStyle.backgroundColor}
+      />
+      <Header title={'product Details'} />
       <View>
         <View>
           <Carousel
@@ -123,7 +183,7 @@ const ProductDetails: React.FC<ProductDetailsScreenProps> = ({
                   }}
                 />
               </TouchableOpacity>
-              <Text style={{fontSize: 16, fontWeight: '700', color : Black}}>
+              <Text style={{fontSize: 16, fontWeight: '700', color: Black}}>
                 {productQuantity}
               </Text>
               <TouchableOpacity
@@ -148,14 +208,14 @@ const ProductDetails: React.FC<ProductDetailsScreenProps> = ({
               </TouchableOpacity>
             </View>
             <TouchableOpacity
-              onPress={showToast}
+              onPress={() => addProductToCart()}
               style={Styles.confirmBtn}>
               <Text style={{color: White, fontWeight: '500'}}>Add To Cart</Text>
             </TouchableOpacity>
           </View>
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -192,15 +252,15 @@ const Styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: 8,
   },
-  confirmBtn : {
+  confirmBtn: {
     width: 180,
-                height: 40,
-                backgroundColor: '#f3702a',
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginVertical: 10,
-                borderRadius: 20,
-  }
+    height: 40,
+    backgroundColor: '#f3702a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 10,
+    borderRadius: 20,
+  },
 });
 
 export default ProductDetails;

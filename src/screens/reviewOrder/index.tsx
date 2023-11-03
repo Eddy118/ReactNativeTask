@@ -1,4 +1,4 @@
-import React, {useRef, useState, useEffect} from 'react';
+import React, {useState, useEffect} from 'react';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {
   View,
@@ -15,6 +15,8 @@ import {
   AppColor,
   Black,
   BlackLite,
+  CART,
+  ORDERS,
   Secondary,
   secondary,
   White,
@@ -22,6 +24,15 @@ import {
 } from '../../constants';
 import {IProduct} from '../../interface';
 import Input from '../../components/input';
+import {useAuth} from '../../context/auth-content';
+import {v4 as uuidv4} from 'uuid';
+import {
+  failureToast,
+  getItemByKey,
+  setItemByKey,
+  successToast,
+} from '../../helpers';
+import {StackActions} from '@react-navigation/native';
 
 export const SLIDER_WIDTH = Dimensions.get('window').width;
 export const ITEM_WIDTH = Math.round(SLIDER_WIDTH * 0.7);
@@ -30,24 +41,46 @@ export type RootStackParamList = {};
 
 type ReviewOrderScreenProps = NativeStackScreenProps<{}>;
 const ReviewOrder: React.FC<ReviewOrderScreenProps> = ({navigation}) => {
+  const {
+    cartProducts,
+    setOrder,
+    setCartProducts,
+    deliveryAddress,
+    payment,
+    user,
+  } = useAuth();
   const [activeItem, setActiveItem] = useState(0);
   const [productQuantity, setProductQuantity] = useState(1);
-  const [cart, setCart] = useState([]);
   const [products, setProducts] = useState([]);
-  const isCarousel = useRef();
+  const [cart, setCart] = useState([]);
+  const [shippingCharges] = useState(10);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const getProducts = async () => {
-    const res = await fetch('https://dummyjson.com/products?limit=10', {
+  const getProducts = async (id: string) => {
+    const res = await fetch(`https://dummyjson.com/products/${id}`, {
       method: 'GET',
     });
-
     const data = await res.json();
-    setProducts(data?.products);
+    return data;
+  };
+
+  const getCartProductDetails = async () => {
+    const cartItems = [];
+    for await (const item of cartProducts) {
+      const product: IProduct = await getProducts(item?.productId);
+      const addToCartItem = {
+        quantity: item?.productQuantity || 1,
+        cartId: item?.id,
+        ...product,
+      };
+      cartItems.push(addToCartItem);
+    }
+    setCart(cartItems);
   };
 
   useEffect(() => {
-    getProducts();
-  }, []);
+    getCartProductDetails();
+  }, [cartProducts]);
 
   const showToast = () => {
     Toast.show({
@@ -57,7 +90,8 @@ const ReviewOrder: React.FC<ReviewOrderScreenProps> = ({navigation}) => {
     });
   };
 
-  const renderCartListing = (item: IProduct) => {
+  const renderCartListing = (item, index) => {
+    const subtotal = item?.price * item?.quantity;
     return (
       <View
         style={{
@@ -83,7 +117,7 @@ const ReviewOrder: React.FC<ReviewOrderScreenProps> = ({navigation}) => {
             <View
               style={{
                 flexDirection: 'row',
-                width: 120,
+                width: 180,
                 justifyContent: 'space-between',
               }}>
               <Text style={Styles.priceTxt}>£ ${item?.price || ''}</Text>
@@ -93,38 +127,83 @@ const ReviewOrder: React.FC<ReviewOrderScreenProps> = ({navigation}) => {
             <View
               style={{
                 flexDirection: 'row',
-                width: 120,
+                width: 180,
                 justifyContent: 'space-between',
               }}>
-              <Text style={Styles.priceTxt}>£ ${item?.price * 2 || ''}</Text>
+              <Text style={Styles.priceTxt}>£ {subtotal || ''}</Text>
               <Text style={{paddingLeft: 10, color: AppColor}}>Subtotal</Text>
             </View>
-            <View style={{justifyContent: 'flex-end', marginTop: 10}}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  width: 130,
-                  justifyContent: 'flex',
-                }}>
-                <Text style={{fontSize: 16, fontWeight: '700'}}>
-                  Qty: {productQuantity}
-                </Text>
-              </View>
-            </View>
+            <View style={{justifyContent: 'flex-end', marginTop: 10}}></View>
           </View>
         </View>
       </View>
     );
   };
 
+  const getCartSubTotal = () => {
+    let subTotal = 0;
+    cart?.map(item => {
+      subTotal = subTotal + item.price * item?.quantity;
+    });
+    return subTotal;
+  };
+
+  const getCartTotal = () => {
+    let subTotal = 0;
+    cart?.map(item => {
+      subTotal = subTotal + item.price * item?.quantity;
+    });
+
+    subTotal = subTotal + shippingCharges;
+    return subTotal;
+  };
+
+  const removeCartProducts = async () => {
+    const localStorageCart = await getItemByKey(CART);
+
+    if (!localStorageCart) {
+      failureToast('No Item found in Cart');
+    }
+
+    const updateCart = localStorageCart.filter(
+      item => item?.email !== user?.email,
+    );
+    await setItemByKey(CART, updateCart);
+  };
+
+  const placeOrder = async () => {
+    const orderDetail = {
+      id: uuidv4(),
+      cartProducts,
+      deliveryAddress,
+      payment,
+      userId: user?.id,
+    };
+    const ordersList = await getItemByKey(ORDERS);
+
+    if (!ordersList) {
+      const activeUserOrder = [orderDetail];
+      setItemByKey(ORDERS, activeUserOrder);
+      successToast('Order Place Successfully');
+    } else {
+      ordersList.push(orderDetail);
+      setItemByKey(ORDERS, ordersList);
+      successToast('Order Place Successfully');
+    }
+    await removeCartProducts();
+    setCartProducts([]);
+    navigation.dispatch(StackActions.replace('dashboard'));
+  };
+
   return (
     <View>
       <Header title="Review Order" />
       <View style={Styles.contentContainer}>
-        <View style={{height: '70%'}}>
+        <View style={{height: '80%'}}>
           <FlatList
-            data={products ?? []}
-            renderItem={({item}) => renderCartListing(item)}
+            keyExtractor={(item, index) => String(index)}
+            data={cart ?? []}
+            renderItem={({item, index}) => renderCartListing(item, index)}
           />
         </View>
 
@@ -136,24 +215,29 @@ const ReviewOrder: React.FC<ReviewOrderScreenProps> = ({navigation}) => {
             marginHorizontal: 10,
             borderRadius: 10,
             backgroundColor: White,
+            width: '90%',
+            alignSelf: 'center',
           }}>
           <View style={Styles.productPricingDetails}>
-            <Text style={Styles.heading}>Subttoal</Text>
-            <Text style={Styles.headingDetail}>Subtoal</Text>
+            <Text style={Styles.heading}>SubTotal</Text>
+            <Text style={Styles.headingDetail}>£ {getCartSubTotal()}</Text>
           </View>
 
           <View style={Styles.productPricingDetails}>
             <Text style={Styles.heading}>Shipping</Text>
-            <Text style={Styles.headingDetail}>Shipping</Text>
+            <Text style={Styles.headingDetail}>£ {shippingCharges}</Text>
           </View>
           <View style={Styles.productPricingDetails}>
             <Text style={Styles.heading}>Total</Text>
-            <Text style={Styles.headingDetail}>Total</Text>
+            <Text style={Styles.headingDetail}>£ {getCartTotal()}</Text>
           </View>
         </View>
       </View>
       <View style={Styles.confirmBtnContainer}>
-        <TouchableOpacity style={Styles.confirmBtn}>
+        <TouchableOpacity
+          disabled={isLoading}
+          onPress={() => placeOrder()}
+          style={Styles.confirmBtn}>
           <Text style={{fontSize: 14, color: White}}>Place Order</Text>
         </TouchableOpacity>
       </View>
@@ -213,8 +297,17 @@ const Styles = StyleSheet.create({
     alignItems: 'center',
     padding: 13,
   },
+  heading: {
+    fontSize: 16,
+    color: Black,
+  },
+  headingDetail: {
+    fontSize: 16,
+    color: AppColor,
+  },
   productPricingDetails: {
-   flexDirection : 'row', justifyContent : 'space-between'
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
 });
 

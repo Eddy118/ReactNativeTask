@@ -4,14 +4,13 @@ import {
   View,
   Image,
   Text,
-  Pressable,
   TouchableOpacity,
   StatusBar,
   useColorScheme,
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import Input from '../../components/input';
-import {Black, SecretText, USERS} from '../../constants';
+import {USERS} from '../../constants';
 import Styles from './styles';
 import {ScrollView} from 'react-native-gesture-handler';
 import * as ImagePicker from 'react-native-image-picker';
@@ -24,24 +23,25 @@ import {
   successToast,
   ValidateEmail,
 } from '../../helpers';
-import CryptoJS from 'react-native-crypto-js';
-import {v4 as uuidv4} from 'uuid';
+import Header from '../../components/header';
+import {useAuth} from '../../context/auth-content';
+import {StackActions} from '@react-navigation/native';
 
 export type RootStackParamList = {};
 
-type loginScreenProps = NativeStackScreenProps<{}>;
+type ProfileScreenProps = NativeStackScreenProps<{}>;
 
-const Login: React.FC<loginScreenProps> = ({navigation}) => {
+const Profile: React.FC<ProfileScreenProps> = ({navigation}) => {
+  const {user, cartProducts} = useAuth();
   const isDarkMode = useColorScheme() === 'dark';
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
 
-  const [email, setEmail] = useState<string>('');
+  const [email, setEmail] = useState<string>(user?.email);
   const [password, setPassword] = useState<string>('');
-  const [firstName, setFirstName] = useState<string>('');
-  const [lastName, setLastName] = useState<string>('');
-  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [firstName, setFirstName] = useState<string>(user?.firstName);
+  const [lastName, setLastName] = useState<string>(user?.lastName);
 
   const [pickerResponse, setPickerResponse] = useState(null);
   const [visible, setVisible] = useState(false);
@@ -68,9 +68,10 @@ const Login: React.FC<loginScreenProps> = ({navigation}) => {
     });
   }, []);
 
+  // function to update User info pausing it here due to submission
   const createUser = async (uri: string) => {
     try {
-      if (!firstName || !lastName || !email || !password || !confirmPassword) {
+      if (!firstName || !lastName || !email) {
         // error messages can be moved to constants file as well
         failureToast('Please fill all fields and then try agin');
         return;
@@ -81,52 +82,39 @@ const Login: React.FC<loginScreenProps> = ({navigation}) => {
         return;
       }
 
-      if (password !== confirmPassword) {
-        failureToast(
-          'please make sure both passwors and confirm passwird fields are same',
-        );
-        return;
-      }
-
       const users = await getItemByKey(USERS);
 
-      // To Make sure User info is secure I'm encrypting user password
-      const encryptPassword = CryptoJS.AES.encrypt(
-        password,
-        SecretText,
-      ).toString();
-      if (!users) {
-        const newUser = [
-          {
-            id: uuidv4(),
-            firstName,
-            lastName,
-            email: email.toLowerCase(),
-            password: encryptPassword,
-            avatar: uri,
-          },
-        ];
-
-        await setItemByKey(USERS, newUser);
-      } else {
-        users.push({
-          id: uuidv4(),
+      const activeUserUpdatedInfo = [
+        {
+          id: user?.id,
           firstName,
           lastName,
           email: email.toLowerCase(),
-          password: encryptPassword,
           avatar: uri,
-        });
+        },
+      ];
+
+      const activeUserIndex = users.findIndex(item => item?.id === user?.id);
+
+      if (activeUserIndex >= 0) {
+        users[activeUserIndex] = activeUserUpdatedInfo;
 
         await setItemByKey(USERS, users);
+
+        successToast('User updated');
+
+        return;
       }
-      successToast('User Created');
-      navigation.navigate('login', {});
+
+      successToast('Somrthing went wrong');
     } catch (error) {}
   };
 
-  const uri = pickerResponse?.assets && pickerResponse.assets[0].uri;
+  const logoutUser = () => {
+    navigation.dispatch(StackActions.replace('login'));
+  };
 
+  const uri = pickerResponse?.assets && pickerResponse.assets[0].uri;
   return (
     <SafeAreaView style={Styles.container}>
       <StatusBar
@@ -142,28 +130,35 @@ const Login: React.FC<loginScreenProps> = ({navigation}) => {
         />
       )}
 
+      <Header
+        title={'Profile'}
+        showUserAvatar={true}
+        user={user}
+        cartItems={cartProducts?.length || '0'}
+      />
+
+      <TouchableOpacity
+        onPress={() => logoutUser()}
+        style={Styles.logoutContainer}>
+      
+         <Text style={Styles.logoutTxt}>
+          Logout
+         </Text>
+        </TouchableOpacity>
       <ScrollView
         contentContainerStyle={{
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',
         }}>
-        <TouchableOpacity>
-          <Image
-            source={require('../../assets/logo.jpg')}
-            style={Styles.logo}
-          />
-        </TouchableOpacity>
         <View style={Styles.contentContainer}>
           <TouchableOpacity
             onPress={() => setVisible(true)}
-            style={{alignSelf: 'center'}}>
+            style={{alignSelf: 'center', borderWidth: 1}}>
             <Image
-              source={
-                uri
-                  ? {uri: uri}
-                  : require('../../assets/images/placeholder.jpeg')
-              }
+              source={{
+                uri: uri ?? user?.avatar,
+              }}
               style={{width: 80, height: 80}}
             />
 
@@ -202,33 +197,9 @@ const Login: React.FC<loginScreenProps> = ({navigation}) => {
               onChangeText={text => setEmail(text)}
             />
 
-            <Input
-              style={{
-                marginTop: 10,
-              }}
-              placeholder="Password"
-              value={password}
-              onChangeText={text => setPassword(text)}
-              secureTextEntry
-            />
-
-            <Input
-              style={{
-                marginTop: 10,
-              }}
-              placeholder="Confirm Password"
-              value={confirmPassword}
-              onChangeText={text => setConfirmPassword(text)}
-              secureTextEntry
-            />
-
-            <Pressable onPress={() => createUser(uri)} style={Styles.loginBtn}>
-              <Text style={Styles.login}>Sign up</Text>
-            </Pressable>
-
-            <Pressable onPress={() => navigation.push('login')}>
-              <Text style={{color: Black}}>Alreay have an account ?</Text>
-            </Pressable>
+            {/* <Pressable onPress={() => createUser(uri)} style={Styles.loginBtn}>
+              <Text style={Styles.login}>Update Profile</Text>
+            </Pressable> */}
           </View>
         </View>
       </ScrollView>
@@ -236,4 +207,4 @@ const Login: React.FC<loginScreenProps> = ({navigation}) => {
   );
 };
 
-export default Login;
+export default Profile;

@@ -29,11 +29,11 @@ export function ImagePickerModal({
       style={styles.modal}>
       <SafeAreaView style={styles.buttons}>
         <Pressable style={styles.button} onPress={onImageLibraryPress}>
-          <Image style={styles.buttonIcon} source={require('../assets/logo.jpg')} />
+          <Image style={styles.buttonIcon} source={require('../assets/images/gallery.jpeg')} />
           <Text style={styles.buttonText}>Library</Text>
         </Pressable>
         <Pressable style={styles.button} onPress={onCameraPress}>
-          <Image style={styles.buttonIcon} source={require('../assets/logo.jpg')} />
+          <Image style={styles.buttonIcon} source={require('../assets/images/camera.png')} />
           <Text style={styles.buttonText}>Camera</Text>
         </Pressable>
       </SafeAreaView>

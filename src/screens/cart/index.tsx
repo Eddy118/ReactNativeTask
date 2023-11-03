@@ -14,16 +14,10 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import Header from '../../components/header';
-import {
-  AppColor,
-  Black,
-  BlackLite,
-  secondary,
-  White,
-  WhiteLite,
-} from '../../constants';
+import {AppColor, Black, BlackLite, White} from '../../constants';
 import {IProduct} from '../../interface';
 import {Colors} from 'react-native/Libraries/NewAppScreen';
+import {useAuth} from '../../context/auth-content';
 
 export const SLIDER_WIDTH = Dimensions.get('window').width;
 export const ITEM_WIDTH = Math.round(SLIDER_WIDTH * 0.7);
@@ -32,6 +26,7 @@ export type RootStackParamList = {};
 
 type CartScreenProps = NativeStackScreenProps<{}>;
 const Cart: React.FC<CartScreenProps> = ({navigation}) => {
+  const {cartProducts, setOrder, setCartProducts} = useAuth();
   const isDarkMode = useColorScheme() === 'dark';
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
@@ -40,20 +35,34 @@ const Cart: React.FC<CartScreenProps> = ({navigation}) => {
   const [activeItem, setActiveItem] = useState(0);
   const [productQuantity, setProductQuantity] = useState(1);
   const [cart, setCart] = useState([]);
+  const [shippingCharges] = useState(10);
   const isCarousel = useRef();
 
-  const getProducts = async () => {
-    const res = await fetch('https://dummyjson.com/products?limit=13', {
+  const getProducts = async (id: string) => {
+    const res = await fetch(`https://dummyjson.com/products/${id}`, {
       method: 'GET',
     });
-
     const data = await res.json();
-    setCart(data?.products);
+    return data;
+  };
+
+  const getCartProductDetails = async () => {
+    const cartItems = [];
+    for await (const item of cartProducts) {
+      const product: IProduct = await getProducts(item?.productId);
+      const addToCartItem = {
+        quantity: item?.productQuantity || 1,
+        cartId: item?.id,
+        ...product,
+      };
+      cartItems.push(addToCartItem);
+    }
+    setCart(cartItems);
   };
 
   useEffect(() => {
-    getProducts();
-  }, []);
+    getCartProductDetails();
+  }, [cartProducts]);
 
   const showToast = () => {
     Toast.show({
@@ -63,7 +72,36 @@ const Cart: React.FC<CartScreenProps> = ({navigation}) => {
     });
   };
 
-  const renderCartListing = (item: IProduct) => {
+  const decreaseQuantity = (product, index) => {
+    const activeUserCartProducts = [...cartProducts];
+    const selectedProductIndex = activeUserCartProducts.findIndex(
+      item => item?.id === product?.cartId,
+    );
+
+    if (
+      selectedProductIndex >= 0 &&
+      activeUserCartProducts[selectedProductIndex].productQuantity > 1
+    ) {
+      activeUserCartProducts[selectedProductIndex].productQuantity =
+        activeUserCartProducts[selectedProductIndex].productQuantity - 1;
+      setCartProducts(activeUserCartProducts);
+    }
+  };
+  const increaseQuantity = product => {
+    const activeUserCartProducts = [...cartProducts];
+    const selectedProductIndex = activeUserCartProducts.findIndex(
+      item => item?.id === product?.cartId
+    );
+    if (selectedProductIndex >= 0) {
+      activeUserCartProducts[selectedProductIndex].productQuantity =
+        activeUserCartProducts[selectedProductIndex].productQuantity + 1;
+        console.log({activeUserCartProducts});
+      setCartProducts(activeUserCartProducts);
+    }
+  };
+
+  const renderCartListing = (item, index) => {
+    const subtotal = item?.price * item?.quantity;
     return (
       <View
         style={{
@@ -89,7 +127,7 @@ const Cart: React.FC<CartScreenProps> = ({navigation}) => {
             <View
               style={{
                 flexDirection: 'row',
-                width: 120,
+                width: 180,
                 justifyContent: 'space-between',
               }}>
               <Text style={Styles.priceTxt}>£ ${item?.price || ''}</Text>
@@ -99,10 +137,10 @@ const Cart: React.FC<CartScreenProps> = ({navigation}) => {
             <View
               style={{
                 flexDirection: 'row',
-                width: 120,
+                width: 180,
                 justifyContent: 'space-between',
               }}>
-              <Text style={Styles.priceTxt}>£ ${item?.price * 2 || ''}</Text>
+              <Text style={Styles.priceTxt}>£ {subtotal || ''}</Text>
               <Text style={{paddingLeft: 10, color: AppColor}}>Subtotal</Text>
             </View>
             <View style={{justifyContent: 'flex-end', marginTop: 10}}>
@@ -113,14 +151,14 @@ const Cart: React.FC<CartScreenProps> = ({navigation}) => {
                   justifyContent: 'space-between',
                 }}>
                 <TouchableOpacity
-                  disabled={productQuantity === 1}
+                  disabled={item?.quantity === 1}
                   onPress={() => {
-                    if (productQuantity > 1) {
-                      setProductQuantity(productQuantity - 1);
+                    if (item?.quantity > 1) {
+                      decreaseQuantity(item, index);
                     }
                   }}
                   style={{
-                    backgroundColor: productQuantity === 1 ? 'gray' : '#19a8b0',
+                    backgroundColor: item?.quantity === 1 ? 'gray' : '#19a8b0',
                     borderRadius: 50,
                     width: 25,
                     height: 25,
@@ -137,11 +175,11 @@ const Cart: React.FC<CartScreenProps> = ({navigation}) => {
                     }}
                   />
                 </TouchableOpacity>
-                <Text style={{fontSize: 16, fontWeight: '700'}}>
-                  {productQuantity}
+                <Text style={{fontSize: 16, fontWeight: '700', color: Black}}>
+                  {item?.quantity}
                 </Text>
                 <TouchableOpacity
-                  onPress={() => setProductQuantity(productQuantity + 1)}
+                  onPress={() => increaseQuantity(item)}
                   style={{
                     backgroundColor: '#19a8b0',
                     borderRadius: 50,
@@ -167,12 +205,30 @@ const Cart: React.FC<CartScreenProps> = ({navigation}) => {
       </View>
     );
   };
+
+  const getCartSubTotal = () => {
+    let subTotal = 0;
+    cart?.map(item => {
+      subTotal = subTotal + item.price * item?.quantity;
+    });
+    return subTotal;
+  };
+
+  const getCartTotal = () => {
+    let subTotal = 0;
+    cart?.map(item => {
+      subTotal = subTotal + item.price * item?.quantity;
+    });
+
+    subTotal = subTotal + shippingCharges;
+    return subTotal;
+  };
+
   return (
     <SafeAreaView
       style={{
         flex: 1,
-        alignItems: 'center',
-        backgroundColor: '#ffff',
+        backgroundColor: White,
       }}>
       <StatusBar
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
@@ -181,8 +237,9 @@ const Cart: React.FC<CartScreenProps> = ({navigation}) => {
       <Header title="Cart" />
       <View style={{marginTop: 30, height: '60%', marginBottom: 10}}>
         <FlatList
+          keyExtractor={(item, index) => String(index)}
           data={cart ?? []}
-          renderItem={({item}) => renderCartListing(item)}
+          renderItem={({item, index}) => renderCartListing(item, index)}
         />
       </View>
 
@@ -194,20 +251,21 @@ const Cart: React.FC<CartScreenProps> = ({navigation}) => {
           marginHorizontal: 10,
           borderRadius: 10,
           backgroundColor: White,
-          width : '90%'
+          width: '90%',
+          alignSelf: 'center',
         }}>
         <View style={Styles.productPricingDetails}>
-          <Text style={Styles.heading}>Subttoal</Text>
-          <Text style={Styles.headingDetail}>Subtoal</Text>
+          <Text style={Styles.heading}>SubTotal</Text>
+          <Text style={Styles.headingDetail}>£ {getCartSubTotal()}</Text>
         </View>
 
         <View style={Styles.productPricingDetails}>
           <Text style={Styles.heading}>Shipping</Text>
-          <Text style={Styles.headingDetail}>Shipping</Text>
+          <Text style={Styles.headingDetail}>£ {shippingCharges}</Text>
         </View>
         <View style={Styles.productPricingDetails}>
           <Text style={Styles.heading}>Total</Text>
-          <Text style={Styles.headingDetail}>Total</Text>
+          <Text style={Styles.headingDetail}>£ {getCartTotal()}</Text>
         </View>
       </View>
 
@@ -218,10 +276,16 @@ const Cart: React.FC<CartScreenProps> = ({navigation}) => {
           alignItems: 'center',
           justifyContent: 'flex-end',
           marginTop: 20,
-          width : '70%'
+          width: '90%',
+          alignSelf: 'center',
         }}>
         <TouchableOpacity
-          onPress={() => navigation.push('checkout')}
+          onPress={() => {
+            setOrder({
+              products: cart,
+            });
+            navigation.push('checkout', {});
+          }}
           style={{
             width: '90%',
             borderRadius: 10,

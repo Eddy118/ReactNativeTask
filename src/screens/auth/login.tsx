@@ -7,18 +7,21 @@ import {
   Pressable,
   StatusBar,
   useColorScheme,
-  Alert,
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {StackActions} from '@react-navigation/native';
 import Input from '../../components/input';
-import {Black, invalidEmail, SecretText, USERS} from '../../constants';
+import {Black, SecretText, USERS} from '../../constants';
 import Styles from './styles';
 import {Colors} from 'react-native/Libraries/NewAppScreen';
-import Toast from 'react-native-toast-message';
-import {getItemByKey, ValidateEmail} from '../../helpers';
+import {
+  failureToast,
+  getItemByKey,
+  ValidateEmail,
+} from '../../helpers';
 import {IUser} from '../../interface';
 import CryptoJS from 'react-native-crypto-js';
+import {useAuth} from '../../context/auth-content';
 
 export type RootStackParamList = {};
 
@@ -30,41 +33,41 @@ const Login: React.FC<loginScreenProps> = ({navigation}) => {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
 
+  const {setUser} = useAuth();
   const [email, setEmail] = useState<string>('');
   const [emailError, setEmailError] = useState<string>('');
   const [password, setPassword] = useState<string>('');
 
-  const validatePassword = () => {
-    return true;
-  };
   const loginUser = async () => {
-    if (ValidateEmail(email) && validatePassword()) {
+    if (!email || !password) {
+      failureToast('Please fill email and password and then try again');
+      return;
+    }
+    if (ValidateEmail(email)) {
       const allUsers = await getItemByKey(USERS);
 
       if (!allUsers) {
-        const user: IUser = allUsers.find(
-          (item: IUser) => item.email === email,
-        );
-
-        if (!user) {
-          // invlaid email or password toast needs to be shown here
-          Alert.alert('No User found');
-        }
-
-        const decryptedTxt = CryptoJS.AES.decrypt(user.password, SecretText);
-        const originalPasswordVal = decryptedTxt.toString(CryptoJS.enc.Utf8);
-
-        if(email !== user.email || password !== originalPasswordVal ){
-
-            // invlaid email or password toast needs to be shown here
-            Alert.alert('Invalid email or Password');
-        }
-
-        // will show Error Message Here
+        failureToast('Invalid email or password');
+        return;
       }
 
-      // will add user finding and email + password matching logic here
-      navigation.dispatch(StackActions.replace('dashboard', {email}));
+      const user: IUser = allUsers.find((item: IUser) => item.email === email);
+
+      if (!user) {
+        failureToast('Invalid email or password');
+        return;
+      }
+
+      const decryptedTxt = CryptoJS.AES.decrypt(user.password, SecretText);
+      const originalPassword = decryptedTxt.toString(CryptoJS.enc.Utf8);
+
+      if (email === user.email && password === originalPassword) {
+        setUser(user);
+        navigation.dispatch(StackActions.replace('dashboard'));
+      } else {
+        // invlaid email or password toast needs to be shown here
+        failureToast('invalid email or password');
+      }
     }
   };
 
@@ -94,8 +97,10 @@ const Login: React.FC<loginScreenProps> = ({navigation}) => {
             secureTextEntry
           />
 
-          <Pressable style={Styles.forgotPasswordBtn}>
-            <Text style={{color: Black}}>Forgot password</Text>
+          <Pressable
+            onPress={() => navigation.push('forgotPassword')}
+            style={Styles.forgotPasswordBtn}>
+            <Text style={{color: Black}}>Forgot password ?</Text>
           </Pressable>
 
           <Pressable onPress={() => loginUser()} style={Styles.loginBtn}>
@@ -103,7 +108,7 @@ const Login: React.FC<loginScreenProps> = ({navigation}) => {
           </Pressable>
 
           <Pressable onPress={() => navigation.push('signup')}>
-            <Text style={{color: Black}}>Don't have an account ?</Text>
+            <Text style={{color: Black}}>Don't have an account</Text>
           </Pressable>
         </View>
       </View>
