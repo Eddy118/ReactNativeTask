@@ -3,15 +3,12 @@
  */
 
 import 'react-native';
-import React from 'react';
-import App from '../App';
 
 // Note: import explicitly to use the types shiped with jest.
 import {it} from '@jest/globals';
+import { ProductAPI } from '../src/api/productAPi';
 
-// Note: test renderer must be required after react-native.
-import renderer from 'react-test-renderer';
-
-it('renders correctly', () => {
-  renderer.create(<App />);
+it('Should have products list', async () => {
+  const res = await ProductAPI.getAll(20, 0);
+  expect(res.length).toBeGreaterThanOrEqual(1)
 });
