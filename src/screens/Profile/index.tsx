@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import Input from '../../components/input';
-import {USERS} from '../../constants';
+import {Black, USERS} from '../../constants';
 import Styles from './styles';
 import {ScrollView} from 'react-native-gesture-handler';
 import * as ImagePicker from 'react-native-image-picker';
@@ -32,7 +32,7 @@ export type RootStackParamList = {};
 type ProfileScreenProps = NativeStackScreenProps<{}>;
 
 const Profile: React.FC<ProfileScreenProps> = ({navigation}) => {
-  const {user, cartProducts} = useAuth();
+  const {user, cartProducts, isInternetAvailable} = useAuth();
   const isDarkMode = useColorScheme() === 'dark';
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
@@ -137,72 +137,89 @@ const Profile: React.FC<ProfileScreenProps> = ({navigation}) => {
         cartItems={cartProducts?.length || '0'}
       />
 
-      <TouchableOpacity
-        onPress={() => logoutUser()}
-        style={Styles.logoutContainer}>
-      
-         <Text style={Styles.logoutTxt}>
-          Logout
-         </Text>
+      {!isInternetAvailable?.isConnected && (
+        <View style={Styles.productTitleContainer}>
+          <Text style={Styles.appOffline}>
+            App is in offline Mode and few features may not work
+          </Text>
+        </View>
+      )}
+
+      {isInternetAvailable?.isConnected && (
+        <TouchableOpacity
+          onPress={() => logoutUser()}
+          style={Styles.logoutContainer}>
+          <Text style={Styles.logoutTxt}>Logout</Text>
         </TouchableOpacity>
-      <ScrollView
-        contentContainerStyle={{
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}>
-        <View style={Styles.contentContainer}>
-          <TouchableOpacity
-            onPress={() => setVisible(true)}
-            style={{alignSelf: 'center', borderWidth: 1}}>
-            <Image
-              source={{
-                uri: uri ?? user?.avatar,
-              }}
-              style={{width: 80, height: 80}}
-            />
+      )}
 
-            <View style={{position: 'absolute', right: -10, top: -10}}>
+      {isInternetAvailable?.isConnected ? (
+        <ScrollView
+          contentContainerStyle={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}>
+          <View style={Styles.contentContainer}>
+            <TouchableOpacity
+              onPress={() => setVisible(true)}
+              style={{alignSelf: 'center', borderWidth: 1}}>
               <Image
-                source={require('../../assets/images/plus.png')}
-                style={{width: 30, height: 30, resizeMode: 'contain'}}
+                source={{
+                  uri: uri ?? user?.avatar,
+                }}
+                style={{width: 80, height: 80}}
               />
-            </View>
-          </TouchableOpacity>
-          <View style={Styles.content}>
-            <Input
-              style={{
-                marginTop: 20,
-              }}
-              placeholder="First Name"
-              value={firstName}
-              onChangeText={text => setFirstName(text)}
-            />
 
-            <Input
-              style={{
-                marginTop: 10,
-              }}
-              placeholder="Last Name"
-              value={lastName}
-              onChangeText={text => setLastName(text)}
-            />
+              <View style={{position: 'absolute', right: -10, top: -10}}>
+                <Image
+                  source={require('../../assets/images/plus.png')}
+                  style={{width: 30, height: 30, resizeMode: 'contain'}}
+                />
+              </View>
+            </TouchableOpacity>
+            <View style={Styles.content}>
+              <Input
+                style={{
+                  marginTop: 20,
+                }}
+                placeholder="First Name"
+                value={firstName}
+                onChangeText={text => setFirstName(text)}
+              />
 
-            <Input
-              style={{
-                marginTop: 10,
-              }}
-              placeholder="Email"
-              value={email}
-              onChangeText={text => setEmail(text)}
-            />
+              <Input
+                style={{
+                  marginTop: 10,
+                }}
+                placeholder="Last Name"
+                value={lastName}
+                onChangeText={text => setLastName(text)}
+              />
 
-            {/* <Pressable onPress={() => createUser(uri)} style={Styles.loginBtn}>
+              <Input
+                style={{
+                  marginTop: 10,
+                }}
+                placeholder="Email"
+                value={email}
+                onChangeText={text => setEmail(text)}
+              />
+
+              {/* <Pressable onPress={() => createUser(uri)} style={Styles.loginBtn}>
               <Text style={Styles.login}>Update Profile</Text>
             </Pressable> */}
+            </View>
           </View>
+        </ScrollView>
+      ) : (
+        <View style={{flex : 1}}>
+          <Text style={{color : Black, fontSize : 14 , marginTop : '60%',paddingHorizontal : 20, alignSelf : 'center', fontWeight : 'bold'}}>
+            Your profile Data will show here once your internet get's restored
+            and you login/signup using your email and password
+          </Text>
         </View>
-      </ScrollView>
+      )}
     </SafeAreaView>
   );
 };

@@ -12,12 +12,13 @@ import {
   useColorScheme,
   SafeAreaView,
 } from 'react-native';
-import Toast from 'react-native-toast-message';
+import Toast from 'react-native-simple-toast';
 import Header from '../../components/header';
 import {AppColor, Black, BlackLite, White} from '../../constants';
 import {IProduct} from '../../interface';
 import {Colors} from 'react-native/Libraries/NewAppScreen';
 import {useAuth} from '../../context/auth-content';
+import {checkInternetConnection} from '../../constants/index';
 
 export const SLIDER_WIDTH = Dimensions.get('window').width;
 export const ITEM_WIDTH = Math.round(SLIDER_WIDTH * 0.7);
@@ -26,7 +27,8 @@ export type RootStackParamList = {};
 
 type CartScreenProps = NativeStackScreenProps<{}>;
 const Cart: React.FC<CartScreenProps> = ({navigation}) => {
-  const {cartProducts, setOrder, setCartProducts} = useAuth();
+  const {cartProducts, setOrder, setCartProducts, isInternetAvailable} =
+    useAuth();
   const isDarkMode = useColorScheme() === 'dark';
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
@@ -39,11 +41,19 @@ const Cart: React.FC<CartScreenProps> = ({navigation}) => {
   const isCarousel = useRef();
 
   const getProducts = async (id: string) => {
-    const res = await fetch(`https://dummyjson.com/products/${id}`, {
-      method: 'GET',
-    });
-    const data = await res.json();
-    return data;
+    try {
+      const res = await fetch(`https://dummyjson.com/products/${id}`, {
+        method: 'GET',
+      });
+      const data = await res.json();
+      return data;
+    } catch (error) {
+      if (error?.message === 'Network request failed') {
+        Toast.show(checkInternetConnection, Toast.BOTTOM);
+      } else {
+        Toast.show(error?.message, Toast.BOTTOM);
+      }
+    }
   };
 
   const getCartProductDetails = async () => {
@@ -64,14 +74,6 @@ const Cart: React.FC<CartScreenProps> = ({navigation}) => {
     getCartProductDetails();
   }, [cartProducts]);
 
-  const showToast = () => {
-    Toast.show({
-      type: 'success',
-      text1: 'Cart',
-      text2: 'Product added',
-    });
-  };
-
   const decreaseQuantity = (product, index) => {
     const activeUserCartProducts = [...cartProducts];
     const selectedProductIndex = activeUserCartProducts.findIndex(
@@ -90,12 +92,12 @@ const Cart: React.FC<CartScreenProps> = ({navigation}) => {
   const increaseQuantity = product => {
     const activeUserCartProducts = [...cartProducts];
     const selectedProductIndex = activeUserCartProducts.findIndex(
-      item => item?.id === product?.cartId
+      item => item?.id === product?.cartId,
     );
     if (selectedProductIndex >= 0) {
       activeUserCartProducts[selectedProductIndex].productQuantity =
         activeUserCartProducts[selectedProductIndex].productQuantity + 1;
-        console.log({activeUserCartProducts});
+      console.log({activeUserCartProducts});
       setCartProducts(activeUserCartProducts);
     }
   };
@@ -235,67 +237,83 @@ const Cart: React.FC<CartScreenProps> = ({navigation}) => {
         backgroundColor={backgroundStyle.backgroundColor}
       />
       <Header title="Cart" />
-      <View style={{marginTop: 30, height: '60%', marginBottom: 10}}>
-        <FlatList
-          keyExtractor={(item, index) => String(index)}
-          data={cart ?? []}
-          renderItem={({item, index}) => renderCartListing(item, index)}
-        />
-      </View>
-
-      <View
-        style={{
-          borderWidth: 1,
-          borderColor: AppColor,
-          padding: 10,
-          marginHorizontal: 10,
-          borderRadius: 10,
-          backgroundColor: White,
-          width: '90%',
-          alignSelf: 'center',
-        }}>
-        <View style={Styles.productPricingDetails}>
-          <Text style={Styles.heading}>SubTotal</Text>
-          <Text style={Styles.headingDetail}>£ {getCartSubTotal()}</Text>
+      {!isInternetAvailable?.isConnected && (
+        <View style={Styles.productTitleContainer}>
+          <Text style={Styles.appOffline}>
+            App is in offline Mode and few features may not work
+          </Text>
         </View>
+      )}
 
-        <View style={Styles.productPricingDetails}>
-          <Text style={Styles.heading}>Shipping</Text>
-          <Text style={Styles.headingDetail}>£ {shippingCharges}</Text>
-        </View>
-        <View style={Styles.productPricingDetails}>
-          <Text style={Styles.heading}>Total</Text>
-          <Text style={Styles.headingDetail}>£ {getCartTotal()}</Text>
-        </View>
-      </View>
+      {isInternetAvailable?.isConnected ? (
+        <>
+          <View style={{marginTop: 30, height: '60%', marginBottom: 10}}>
+            <FlatList
+              keyExtractor={(item, index) => String(index)}
+              data={cart ?? []}
+              renderItem={({item, index}) => renderCartListing(item, index)}
+            />
+          </View>
 
-      <View
-        style={{
-          marginHorizontal: 10,
-          height: '10%',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          marginTop: 20,
-          width: '90%',
-          alignSelf: 'center',
-        }}>
-        <TouchableOpacity
-          onPress={() => {
-            setOrder({
-              products: cart,
-            });
-            navigation.push('checkout', {});
-          }}
-          style={{
-            width: '90%',
-            borderRadius: 10,
-            backgroundColor: AppColor,
-            alignItems: 'center',
-            padding: 13,
-          }}>
-          <Text style={{fontSize: 14, color: White}}>Checkout</Text>
-        </TouchableOpacity>
-      </View>
+          <View
+            style={{
+              borderWidth: 1,
+              borderColor: AppColor,
+              padding: 10,
+              marginHorizontal: 10,
+              borderRadius: 10,
+              backgroundColor: White,
+              width: '90%',
+              alignSelf: 'center',
+            }}>
+            <View style={Styles.productPricingDetails}>
+              <Text style={Styles.heading}>SubTotal</Text>
+              <Text style={Styles.headingDetail}>£ {getCartSubTotal()}</Text>
+            </View>
+
+            <View style={Styles.productPricingDetails}>
+              <Text style={Styles.heading}>Shipping</Text>
+              <Text style={Styles.headingDetail}>£ {shippingCharges}</Text>
+            </View>
+            <View style={Styles.productPricingDetails}>
+              <Text style={Styles.heading}>Total</Text>
+              <Text style={Styles.headingDetail}>£ {getCartTotal()}</Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              marginHorizontal: 10,
+              height: '10%',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              marginTop: 20,
+              width: '90%',
+              alignSelf: 'center',
+            }}>
+            <TouchableOpacity
+              onPress={() => {
+                setOrder({
+                  products: cart,
+                });
+                navigation.push('checkout', {});
+              }}
+              style={{
+                width: '90%',
+                borderRadius: 10,
+                backgroundColor: AppColor,
+                alignItems: 'center',
+                padding: 13,
+              }}>
+              <Text style={{fontSize: 14, color: White}}>Checkout</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      ) : (
+        <View style={{flex: 1}}>
+          <Text style={{color : Black, fontSize : 14}}>No Items Available in Cart</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -344,6 +362,15 @@ const Styles = StyleSheet.create({
   headingDetail: {
     fontSize: 16,
     color: AppColor,
+  },
+  productTitleContainer: {
+    marginHorizontal: 10,
+    marginVertical: 10,
+  },
+  appOffline: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: Black,
   },
 });
 

@@ -40,7 +40,7 @@ const ProductDetails: React.FC<ProductDetailsScreenProps> = ({
     params: {product},
   },
 }) => {
-  const {user, setCartProducts} = useAuth();
+  const {user, setCartProducts, isInternetAvailable} = useAuth();
   const [activeItem, setActiveItem] = useState(0);
   const [productQuantity, setProductQuantity] = useState(1);
   const isCarousel = useRef();
@@ -112,18 +112,38 @@ const ProductDetails: React.FC<ProductDetailsScreenProps> = ({
         backgroundColor={backgroundStyle.backgroundColor}
       />
       <Header title={'product Details'} />
+      {!isInternetAvailable?.isConnected && (
+        <View style={Styles.productTitleContainer}>
+          <Text style={Styles.appOffline}>
+            App is in offline Mode and few features may not work
+          </Text>
+        </View>
+      )}
       <View>
         <View>
-          <Carousel
-            layoutCardOffset={15}
-            ref={isCarousel}
-            data={images}
-            renderItem={_renderItem}
-            sliderWidth={SLIDER_WIDTH}
-            itemWidth={ITEM_WIDTH}
-            onSnapToItem={(index: number) => setActiveItem(index)}
-            useScrollView={true}
-          />
+          {!isInternetAvailable?.isConnected ? (
+            <Image
+              source={require('../../assets/images/productPlaceholder.png')}
+              alt={'No product image found'}
+              style={{
+                width: '80%',
+                height: 300,
+                resizeMode: 'contain',
+                alignSelf: 'center',
+              }}
+            />
+          ) : (
+            <Carousel
+              layoutCardOffset={15}
+              ref={isCarousel}
+              data={images || ['']}
+              renderItem={_renderItem}
+              sliderWidth={SLIDER_WIDTH}
+              itemWidth={ITEM_WIDTH}
+              onSnapToItem={(index: number) => setActiveItem(index)}
+              useScrollView={true}
+            />
+          )}
         </View>
 
         <View style={{marginHorizontal: 20, marginVertical: 20}}>
@@ -208,8 +228,20 @@ const ProductDetails: React.FC<ProductDetailsScreenProps> = ({
               </TouchableOpacity>
             </View>
             <TouchableOpacity
-              onPress={() => addProductToCart()}
-              style={Styles.confirmBtn}>
+              disabled={!isInternetAvailable?.isConnected}
+              onPress={() => {
+                if (isInternetAvailable?.isConnected) {
+                  addProductToCart();
+                }
+              }}
+              style={[
+                Styles.confirmBtn,
+                {
+                  backgroundColor: !isInternetAvailable?.isConnected
+                    ? 'gray'
+                    : '#f3702a',
+                },
+              ]}>
               <Text style={{color: White, fontWeight: '500'}}>Add To Cart</Text>
             </TouchableOpacity>
           </View>
@@ -260,6 +292,20 @@ const Styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 10,
     borderRadius: 20,
+  },
+  productTitleContainer: {
+    marginHorizontal: 10,
+    marginVertical: 10,
+  },
+  productTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Black,
+  },
+  appOffline: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: Black,
   },
 });
 

@@ -26,7 +26,7 @@ export type RootStackParamList = {};
 type OrdersScreenProps = NativeStackScreenProps<{}>;
 
 const Orders: React.FC<OrdersScreenProps> = ({navigation}) => {
-  const {user, setCartProducts, cartProducts} = useAuth();
+  const {user, setCartProducts, cartProducts, isInternetAvailable} = useAuth();
   const [products, setProducts] = useState<IProduct[]>();
   const [page, setPage] = useState<number>(0);
   const [orders, setOrders] = useState([]);
@@ -55,31 +55,36 @@ const Orders: React.FC<OrdersScreenProps> = ({navigation}) => {
   }, []);
 
   const renderProductList = item => {
-
     return (
       <View style={Styles.listContainer}>
-         <View style={Styles.productDetails}>
+        <View style={Styles.productDetails}>
           <Text style={Styles.productDetailTitle}>Number of Products</Text>
-          <Text style={Styles.productDetailDescription}>{item?.cartProducts?.length}</Text>
+          <Text style={Styles.productDetailDescription}>
+            {item?.cartProducts?.length}
+          </Text>
         </View>
         <View style={Styles.productDetails}>
           <Text style={Styles.productDetailTitle}>Status</Text>
-          <Text  style={Styles.productDetailDescription}>Pending</Text>
+          <Text style={Styles.productDetailDescription}>Pending</Text>
         </View>
         <View style={Styles.productDetails}>
           <Text style={Styles.productDetailTitle}>Payment Methods</Text>
-          <Text style={Styles.productDetailDescription}>{item?.payment?.paymentMethod}</Text>
+          <Text style={Styles.productDetailDescription}>
+            {item?.payment?.paymentMethod}
+          </Text>
         </View>
         <View style={Styles.productDetails}>
           <Text style={Styles.productDetailTitle}>Contact No</Text>
-          <Text style={Styles.productDetailDescription}>{item?.deliveryAddress?.contactNo}</Text>
+          <Text style={Styles.productDetailDescription}>
+            {item?.deliveryAddress?.contactNo}
+          </Text>
         </View>
       </View>
     );
   };
 
   return (
-    <SafeAreaView style={{backgroundColor: White, flex : 1}}>
+    <SafeAreaView style={{backgroundColor: White, flex: 1}}>
       <StatusBar
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor={backgroundStyle.backgroundColor}
@@ -90,6 +95,14 @@ const Orders: React.FC<OrdersScreenProps> = ({navigation}) => {
         user={user}
         cartItems={cartProducts?.length || '0'}
       />
+
+      {!isInternetAvailable?.isConnected && (
+        <View style={Styles.productTitleContainer}>
+          <Text style={Styles.appOffline}>
+            App is in offline Mode and few features may not work
+          </Text>
+        </View>
+      )}
       <View style={Styles.productTitleContainer}>
         <Text style={Styles.productTitle}>Orders Listing</Text>
       </View>

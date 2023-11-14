@@ -8,7 +8,6 @@ import React, {
   useContext,
   useState,
 } from 'react';
-import {IProduct} from '../interface';
 
 type AuthContextType = {
   user: {[key: string]: any} | null;
@@ -21,6 +20,8 @@ type AuthContextType = {
   setDeliveryAddress: Dispatch<SetStateAction<{[key: string]: any} | null>>;
   payment: {[key: string]: any} | null;
   setPayment: Dispatch<SetStateAction<{[key: string]: any} | null>>;
+  isInternetAvailable: {[key: string]: any} | null;
+  setIsInternetAvailable: Dispatch<SetStateAction<{[key: string]: any} | null>>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,7 +43,10 @@ const AuthProvider = (props: {children: ReactNode}): ReactElement => {
   const [deliveryAddress, setDeliveryAddress] = useState<{
     [key: string]: any;
   } | null>(null);
+  
   const [payment, setPayment] = useState<{[key: string]: any} | null>(null);
+
+  const [isInternetAvailable, setIsInternetAvailable] = useState<{[key: string]: any} | null>(null);
 
   return (
     <AuthContext.Provider
@@ -58,6 +62,9 @@ const AuthProvider = (props: {children: ReactNode}): ReactElement => {
         setDeliveryAddress,
         payment,
         setPayment,
+        isInternetAvailable,
+        setIsInternetAvailable
+        
       }}
     />
   );

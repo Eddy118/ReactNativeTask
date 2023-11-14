@@ -35,6 +35,9 @@ const Styles = StyleSheet.create({
   productTitle: {
    fontSize: 20, fontWeight: 'bold', color: Black
   },
+  appOffline: {
+    fontSize: 12, fontWeight: 'bold', color: Black
+   },
   productPricingDetail: {
    color: Black,
    fontSize : 12

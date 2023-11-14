@@ -14,13 +14,17 @@ type HeaderProps = PropsWithChildren<{
 }>;
 
 const Header = ({title, showUserAvatar, user}: HeaderProps): JSX.Element => {
-  const {cartProducts} = useAuth();
+  const {cartProducts, isInternetAvailable} = useAuth();
   const navigation = useNavigation();
 
   const cart = cartProducts?.length || 0;
 
   return (
-    <View style={Styles.container}>
+    <View
+      style={[
+        Styles.container,
+        {backgroundColor: isInternetAvailable?.isConnected ? AppColor : 'gray'},
+      ]}>
       {showUserAvatar ? (
         <Image
           source={{

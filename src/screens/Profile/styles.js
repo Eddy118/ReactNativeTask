@@ -1,5 +1,5 @@
 import {StyleSheet} from 'react-native';
-import { Secondary, White } from '../../constants';
+import { Black, Secondary, White } from '../../constants';
 
 const Styles = StyleSheet.create({
   container: {
@@ -71,7 +71,17 @@ const Styles = StyleSheet.create({
     fontWeight : 'bold',
     fontSize : 14,
     color : White
-  }
+  },
+
+  productTitleContainer:{
+    marginHorizontal: 10, marginVertical: 10
+   },
+   productTitle: {
+    fontSize: 20, fontWeight: 'bold', color: Black
+   },
+   appOffline: {
+     fontSize: 12, fontWeight: 'bold', color: Black
+    },
 });
 
 export default Styles;
